@@ -26,7 +26,5 @@ COPY app.py .
 COPY model.tflite .
 
 # Expose port for Render
-EXPOSE 5000
-
-# Run the Flask app with gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
+EXPOSE 10000
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "app:app"]
