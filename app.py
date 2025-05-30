@@ -1,32 +1,28 @@
 from flask import Flask, request, jsonify
-import tensorflow as tf
+import tensorflow.lite as tflite
 import numpy as np
+import os
 
 app = Flask(__name__)
-
-# Load TFLite model
-interpreter = tf.lite.Interpreter(model_path='model.tflite')
+interpreter = tflite.Interpreter(model_path="model.tflite")
 interpreter.allocate_tensors()
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "healthy"}), 200
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    try:
-        # Get input data (expects a 28x28 image as a flattened array)
-        data = request.json['input']
-        input_data = np.array(data, dtype=np.float32).reshape(1, 28, 28, 1)
-        
-        # Run inference
-        interpreter.set_tensor(input_details[0]['index'], input_data)
-        interpreter.invoke()
-        output_data = interpreter.get_tensor(output_details[0]['index'])
-        
-        # Return prediction
-        prediction = np.argmax(output_data[0])
-        return jsonify({'prediction': int(prediction), 'probabilities': output_data[0].tolist()})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
+    data = request.get_json()
+    if not data or 'input' not in data:
+        return jsonify({"error": "No input data provided"}), 400
+    input_data = np.array(data['input'], dtype=np.float32).reshape(1, 28, 28, 1)
+    interpreter.set_tensor(interpreter.get_input_details()[0]['index'], input_data)
+    interpreter.invoke()
+    output = interpreter.get_tensor(interpreter.get_output_details()[0]['index'])
+    prediction = np.argmax(output)
+    probabilities = output[0].tolist()
+    return jsonify({"prediction": int(prediction), "probabilities": probabilities})
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
